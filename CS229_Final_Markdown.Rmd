@@ -1,0 +1,260 @@
+---
+title: "CS229 Final Project – Exploring Gender Pay Gap in a Data Set"
+author: "Lauren Bottomley & Montara Bader"
+date: "2023-12-14"
+output: html_document
+---
+
+## Introduction
+
+In this project, we explore whether or not the gender pay gap seems to be present within this data set, and if that disparity is due to gender or other factors such as education level and years of experience. Gender pay gap has been a hot topic for the last few decades, and its existence is heavily questioned. Some believe that gender pay gap observed over the years is due to a lack of equality and workplace diversity and others deny its existence entirely.
+
+#### Research Questions
+
+1.  Is there a significant gender pay gap within the data set?
+2.  Do education level and years of experience hold any significance on why this is the case?
+
+The data is obtained from [Kaggle](https://www.kaggle.com/datasets/amirmahdiabbootalebi/salary-by-job-title-and-country/), it is cleaned and pre-processed for data analysis. It includes attributes such as job title, country, race, age, gender, years of experience, salary, and education level.
+
+Loading the necessary libraries and data into a CSV file:
+
+```{r}
+library(tidyverse) 
+library(dplyr) 
+library(ggplot2)
+
+data <- read.csv("Salary.csv") 
+```
+
+## Analysis of Salary Based on Gender
+
+To extract relevant information, we create a data frame and filter through the data to include only columns of job title, salary, and gender. We calculate the average for each unique job title, respective to males and females. In order to avoid having missing or inaccurate values in the data table, we filter out job titles that are one-sided, meaning they are not mutually shared by both males and females. Finally we pivot the data to create columns for the average salary of each unique job title between males and females respectively for improved readability and observation.
+
+```{r}
+# Extract relevant columns
+job_salary_data <- data[, c("Job.Title", "Salary", "Gender")]
+
+# Calculate the average salary for each job title and gender
+avg_salary_gender_df <- job_salary_data %>% group_by(Job.Title, Gender) %>% summarise(Avg.Salary = mean(Salary, na.rm = TRUE))
+
+# Filter out job titles where either Male or Female observations are missing
+avg_salary_gender_df <- avg_salary_gender_df %>% group_by(Job.Title) %>% filter(all(c("Male", "Female") %in% Gender))
+
+# Pivot the data to have separate columns for Male and Female
+avg_salary_gender_df <- avg_salary_gender_df %>% pivot_wider(names_from = Gender, values_from = Avg.Salary)
+
+# Calculate the relative difference between male and female salaries
+avg_salary_gender_df$Relative_Difference <- (avg_salary_gender_df$Male - avg_salary_gender_df$Female) / avg_salary_gender_df$Female
+
+# Order the data frame by job title
+avg_salary_gender_df <- avg_salary_gender_df %>% arrange(Job.Title)
+
+print(avg_salary_gender_df)
+```
+
+Next, we are calculating the overall disparity in salaries between males and females for each unique job title.
+
+```{r}
+overall_disparity <- mean(avg_salary_gender_df$Relative_Difference, na.rm = TRUE)
+
+cat("Overall Disparity in Salaries:", overall_disparity, "\n", round(overall_disparity * 100, 2), "%")
+```
+
+In this data set, on average, male salaries are roughly **0.68%** higher than female salaries for the same job title. For further visualization, we observed the average salaries for each unique job title between males and females respectively in a bar graph to observe how they differ.
+
+``` r
+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+ggplot(avg_exp_gender_df, aes(x = Job.Title)) +
+  geom_bar(aes(y = Male, fill = "Male"), stat = "identity", alpha = 0.4) +
+  geom_bar(aes(y = Female, fill = "Female"), stat = "identity", alpha = 0.4) +
+  labs(title = "Average Salary by Job Title and Gender",
+       x = "Job Title", y = "Average Salary", fill = "Gender") +
+  
+  scale_fill_manual(values = c("Male" = "blue", "Female" = "pink")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+```
+
+![The y-axis represents dollars from 0-250,000. The light purple color represents both male and female.](Rplot_bar.png)
+
+It appears that the average salary for males is higher than females in most job titles. However, there are a few job titles where the average salary for females appears to be much higher than males. These disparities could be a result from the number of people in each job title or the distribution of salaries within each job title than the gender component alone.
+
+## Analyzing Other Factors
+
+In order to gain more insight into the gender pay gap, we analyzed years of experience and education level to determine if these components may or may not have any correlation on why the disparity is present. We create a new data frame comparing unique job titles mutually shared by males and females, their respective average salaries, and respective average years of experience.
+
+#### Analyzing Years of Experience
+
+```{r}
+
+# Extract relevant columns
+exp_salary_data <- data[, c("Job.Title", "Years.of.Experience", "Salary", "Gender")]
+
+# Filter the data to include only job titles with both male and female observations
+filtered_data <- exp_salary_data %>% group_by(Job.Title) %>% filter(all(c("Male", "Female") %in% Gender))
+
+# Calculate the average salary and years of experience for each job title and gender
+avg_exp_salary_by_job_gender <- filtered_data %>% group_by(Job.Title, Gender) %>% summarise(Avg.Salary = mean(Salary, na.rm = TRUE), Avg.Years.Experience = mean(Years.of.Experience, na.rm = TRUE))
+
+# Pivot the data to have separate columns for Male and Female
+avg_exp_salary_gender_df <- avg_exp_salary_by_job_gender %>% pivot_wider(names_from = Gender, values_from = c(Avg.Salary, Avg.Years.Experience))
+
+# Preview of the data table for observation
+print(avg_exp_salary_gender_df)
+```
+
+```{r}
+# Extract relevant columns
+exp_data <- data[, c("Job.Title", "Gender", "Years.of.Experience")]
+
+# Calculate the average years of experience for each job title and gender
+avg_exp_gender_df <- exp_data %>% group_by(Job.Title, Gender) %>% summarise(Avg.Years.Experience = mean(Years.of.Experience, na.rm = TRUE))
+
+# Filter out job titles where either Male or Female observations are missing
+avg_exp_gender_df <- avg_exp_gender_df %>% group_by(Job.Title) %>% filter(all(c("Male", "Female") %in% Gender))
+
+# Pivot the data to have separate columns for Male and Female
+avg_exp_gender_df <- avg_exp_gender_df %>% pivot_wider(names_from = Gender, values_from = Avg.Years.Experience)
+
+# Calculate the relative difference between male and female years of experience
+avg_exp_gender_df$Relative_Difference <- (avg_exp_gender_df$Male - avg_exp_gender_df$Female) / avg_exp_gender_df$Female
+
+# Order the data frame by job title
+avg_exp_gender_df <- avg_exp_gender_df %>% arrange(Job.Title)
+
+print(avg_exp_gender_df)
+```
+
+Next, we are calculating our second summary statistic of the average relative disparity in years of experience between males and females across all mutually shared job titles.
+
+```{r}
+#Overall disparity calculation
+overall_disparity_exp <- mean(avg_exp_gender_df$Relative_Difference, na.rm = TRUE)
+
+cat("\nOverall Disparity in Years of Experience:", overall_disparity_exp, "\n")
+```
+
+In this data set, on average, males have **1.65%** more experience than females in their mutually shared job titles. For further visualization, we observed the years of experience against the salaries of males and females respectively in a scatter plot.
+
+``` r
+expSalary_data <- data[, c("Job.Title", "Gender", "Years.of.Experience", "Salary")]
+ggplot(expSalary_data, aes(x = Years.of.Experience, y = Salary, color = Gender)) +
+  geom_point(alpha = 0.5) + 
+  labs(title = "Years of Experience and Salary by Gender",
+       x = "Years of Experience", y = "Salary") +
+  scale_color_manual(values = c("Male" = "blue", "Female" = "pink")) +
+  theme_minimal()
+```
+
+![](Rplot_scatter1.png)
+
+It appears that there is a positive correlation between years of experience and salary for both genders. However, it also appears that men tend to have higher salaries than women at the same level of experience. Some of this could be attributed to job sectors not identified in the graph.
+
+#### Analyzing Education Level
+
+```{r}
+# Extract relevant columns
+edu_salary_data <- data[, c("Job.Title", "Education.Level", "Salary", "Gender")]
+
+# Filter the data to include only job titles with both male and female observations
+filtered_data_edu <- edu_salary_data %>% group_by(Job.Title) %>% filter(all(c("Male", "Female") %in% Gender))
+
+# Calculate the average salary and education level for each job title and gender
+avg_edu_salary_by_job_gender <- filtered_data_edu %>% group_by(Job.Title, Gender) %>% summarise(Avg.Salary = mean(Salary, na.rm = TRUE), Avg.Education.Level = mean(Education.Level, na.rm = TRUE))
+
+# Pivot the data to have separate columns for Male and Female
+avg_edu_salary_gender_df <- avg_edu_salary_by_job_gender %>% pivot_wider(names_from = Gender, values_from = c(Avg.Salary, Avg.Education.Level))
+
+print(avg_edu_salary_gender_df)
+```
+
+```{r}
+# Extract relevant columns
+edu_data <- data[, c("Job.Title", "Gender", "Education.Level")]
+
+# Calculate the average education level for each job title and gender
+avg_edu_gender_df <- edu_data %>%
+  group_by(Job.Title, Gender) %>%
+  summarise(Avg.Education.Level = mean(Education.Level, na.rm = TRUE))
+
+# Filter out job titles where either Male or Female observations are missing
+avg_edu_gender_df <- avg_edu_gender_df %>%
+  group_by(Job.Title) %>%
+  filter(all(c("Male", "Female") %in% Gender))
+
+# Pivot the data to have separate columns for Male and Female
+avg_edu_gender_df <- avg_edu_gender_df %>%
+  pivot_wider(names_from = Gender, values_from = Avg.Education.Level)
+
+# Calculate the relative difference between male and female education levels
+avg_edu_gender_df$Relative_Difference <- (avg_edu_gender_df$Male - avg_edu_gender_df$Female) / avg_edu_gender_df$Female
+
+# Order the data frame by job title
+avg_edu_gender_df <- avg_edu_gender_df %>%
+  arrange(Job.Title)
+
+print(avg_edu_gender_df)
+```
+
+Next, we are calculating the third summary statistic for the average relative disparity in education level between males and females across all mutually shared job titles.
+
+```{r}
+# Overall disparity calculation
+overall_disparity_edu <- mean(avg_edu_gender_df$Relative_Difference, na.rm = TRUE)
+
+cat("Overall Disparity in Education Level:", overall_disparity_edu)
+```
+
+In this data set, on average, males have a slightly higher education level of **0.99%** than females across their mutually shared job titles. For further visualization, we observed the education level against the salaries of males and females respectively in a scatter plot. For further visualization, we observed the education level against the salaries of males and females respectively in a scatter plot.
+
+``` r
+ggplot(edu_salary_data, aes(x = Education.Level, y = Salary, color = Gender)) +
+  geom_point(alpha = 0.4) +  # Adding transparency to points
+  labs(title = "Education Level and Salary by Gender",
+       x = "Education Level", y = "Salary") +
+  scale_color_manual(values = c("Male" = "blue", "Female" = "pink")) +
+  theme_minimal()
+```
+
+![](Rplot_scatter2.png)
+
+It appears that there is a positive correlation between education level and salary for both men and women. However, it also appears that men have a higher salary at all education levels compared to women. This may infer that education level is not a significant predictor of the disparity.
+
+``` r
+ggplot(edu_salary_data, aes(x = as.factor(Education.Level), y = Salary, fill = Gender)) +
+  geom_boxplot(alpha = 0.4, position = position_dodge(width = 0.8)) +
+  labs(title = "Education Level and Salary by Gender",
+       x = "Education Level", y = "Salary") +
+  scale_fill_manual(values = c("Male" = "blue", "Female" = "pink")) +
+  theme_minimal()
+```
+
+![](Rplot_box.png)
+
+It seems to suggest that as education level increases, so does salary, and that there is a gender gap in salary at all education levels. This may, however, be due to differing industries that are not present in this box plot.
+
+### Conclusion
+
+In this analysis of exploring gender pay gap, we have examined the data set with a focus on understanding the disparities in salaries, considering factors such as education level and years of experience. Here are some of the key conclusions drawn from our investigation:
+
+**Overall Disparity:** The analysis reveals an overall disparity in salaries, with male salaries being approximately 0.68% higher than female salaries for the same job title. While this suggests a gender pay gap, it's important to note that this difference is based solely on gender and does not account for other potential contributing factors.
+
+**Factors Considered:** Education level and years of experience were taken into account to understand their impact on the gender pay gap. The analysis considered the average salaries and relative differences in education level and years of experience between male and female employees for each unique job title.
+
+-   **Education Level --** The examination of education levels revealed a positive correlation between education and salary for both genders. However, men consistently had higher salaries at all education levels, indicating that education alone does not explain the observed pay gap.
+
+-   **Years of Experience --** Similarly, a positive correlation between years of experience and salary was observed for both genders. Despite this, men tended to have higher salaries than women with the same level of experience, suggesting that experience alone does not account for the entirety of the pay gap.
+
+**Further Investigation:**
+
+-   **In-depth Analysis --** While this analysis provides valuable insights, a more in-depth examination could involve exploring additional factors such as job roles, industries, and specific responsibilities within each job title. This may help uncover nuances in the gender pay gap that were not captured in the current analysis.
+
+-   **Policy Considerations** -- Organizations should consider implementing policies and practices that promote pay equity. Regular reviews of salary structures, transparent salary negotiations, and addressing potential biases in hiring and promotion processes are crucial steps toward achieveing gender pay equality.
+
+In conclusion, our analysis sheds light on the existence of a gender pay gap, and while education and experience play a role, they do not fully account for the observed disparities. Further research and proactive measures are essential to addressing the multifaceted nature of gender pay inequality in the workplace.
+
+##### Contributions
+
+^~**Lauren Bottomley --** responsibilities included creating data frames, calculating summary statistics, and developing the R Markdown file.~^
+
+^~**Montara Bader \--** responsibilities included researching for a suitable dataset, creating ggplot visualizations of the data, and creating the Powerpoint slides for this project's presentation.~^
